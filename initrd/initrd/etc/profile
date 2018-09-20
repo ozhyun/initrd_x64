@@ -1,0 +1,8 @@
+# /etc/profile: system-wide .profile file for sh.
+
+export PATH="/sbin:/bin"
+#export LD_LIBRARY_PATH="/usr/lib:/lib"
+
+export PS1="\h \W> "
+
+alias  dir="ls -l"

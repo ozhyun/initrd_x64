@@ -1,0 +1,271 @@
+#!/bin/sh 
+
+#params: <RMSIZE>
+use_tmpfs()
+{
+	if [ "$1" = "" ]; then
+		echo "Create tmpfs size 128M"
+		mount -t tmpfs -o size=128m tmpfs /sysroot
+	else
+		echo "Create tmpfs size ${1}M"
+		mount -t tmpfs -o size=${1}m tmpfs /sysroot
+	fi
+}
+
+
+#echo Start Initrd...
+export PATH=/bin:/sbin
+
+#echo Mounting proc filesystem
+mount -t proc /proc /proc
+
+#echo Mounting sysfs filesystem
+mount -t sysfs /sys /sys
+
+RMSIZE="`awk -F'rmsize=' '{print $2}' /proc/cmdline |awk -F' ' '{print $1}'`"
+RMONLY="`awk -F'rmonly=' '{print $2}' /proc/cmdline |awk -F' ' '{print $1}'`"
+DEBUG="`awk -F'debug=' '{print $2}' /proc/cmdline |awk -F' ' '{print $1}'`"
+
+DISK="/dev/hda1 /dev/sda1 /dev/hdb1 /dev/sdb1 /dev/sda2 /dev/sdb2 /dev/hdc1 /dev/sdc1 /dev/sdc2 /dev/vda1 /dev/vda2 /dev/vdb1"
+BOOT="/dev/hda1"
+ROOTDISK=
+DATADISK=
+
+
+# mknode harddisk
+DISKINFO=/tmp/disk.info
+cat /proc/diskstats | awk '{ if($1 != "1") { print $1 " " $2 " " $3} }' > $DISKINFO
+if [ -f $DISKINFO ]; then
+	(cat $DISKINFO; echo ) | 
+	while read Major Minor Node
+	do 
+		case $Major in
+			"") continue;;
+		esac
+	
+		if [ -e /dev/$Node ]; then
+			echo "/dev/$Node exist"
+		else
+			mknod /dev/$Node b $Major $Minor
+		fi
+	done
+	rm -f $DISKINFO
+fi
+
+
+#echo Create RamDisk OK
+#df
+#sleep 2
+
+#echo get disk info
+#cat /proc/diskstats
+#sleep 3
+
+mkdir -p /mnt
+
+echo Mount Harddisk ...
+BOOTOK="NO"
+FINDROOT="NO"
+FINDDATA="NO"
+for bootdisk in $DISK; do
+	HDNAME="`echo $bootdisk | awk -F'/' '{ print $3 }'`"
+	grep $HDNAME /proc/partitions > /dev/null
+	if [ $? -ne 0 ]; then
+		echo "$bootdisk not exist"
+		continue
+	fi
+
+	mount $bootdisk /mnt
+	if [ $? -ne 0 ]; then
+		echo "Boot Disk not $bootdisk"
+		#sleep 3
+	else
+		if [ $BOOTOK = "NO" -a -f /mnt/ldlinux.sys ]; then
+			echo "BootDisk is $bootdisk"
+			#sleep 3
+			BOOT=$bootdisk
+			BOOTOK="YES"
+			#Not to traverse all harddisk when RMONLY flag be setted
+			#if [ "$RMONLY" = "1" ]; then
+				#umount /mnt
+				#break
+			#fi
+		elif [ $FINDROOT = "NO" ]; then
+			echo "RootDisk is $bootdisk"
+			ROOTDISK=$bootdisk
+			FINDROOT="YES"
+		else
+			echo "DataDisk is $bootdisk"
+			DATADISK=$bootdisk
+			FINDDATA="YES"
+		fi
+		umount /mnt
+	fi
+done
+
+VDISK_DIR="/vdisk"
+#expkg mkfs directory
+mkdir -p /tmp/pkg
+if [ "$RMONLY" = "1" ]; then
+	mkdir -p /sysroot/$VDISK_DIR
+	use_tmpfs $RMSIZE
+	mount -t tmpfs -o size=512m tmpfs /tmp/pkg
+
+	if [ $FINDROOT = "YES" ]; then
+		mount $ROOTDISK  $VDISK_DIR 
+		if [ $? -eq 0 ]; then
+			./cleanup.sh $VDISK_DIR
+			mkdir -p $VDISK_DIR/data
+			mkdir -p $VDISK_DIR/usr/local/redis/data
+			mkdir -p $VDISK_DIR/usr/local/etc/ambit/www/vdist
+			mkdir -p $VDISK_DIR/var/log
+			mkdir -p $VDISK_DIR/usr/local/www
+			mkdir -p $VDISK_DIR/apps
+			mkdir -p $VDISK_DIR/appslog
+			mkdir -p $VDISK_DIR/InstallGram
+			mkdir -p $VDISK_DIR/Install_gam
+			mkdir -p $VDISK_DIR/tmp/download
+			mkdir -p $VDISK_DIR/tmp/upload
+			mkdir -p $VDISK_DIR/tmp/image
+			mkdir -p $VDISK_DIR/var/upgrade
+			mkdir -p $VDISK_DIR/var/tmp/upgrade
+			mkdir -p $VDISK_DIR/tmp/export_ui
+			mkdir -p $VDISK_DIR/tmp/pkg
+			mkdir -p $VDISK_DIR/tmp/cli
+			mkdir -p $VDISK_DIR/var/db
+			mkdir -p /sysroot/var
+			mkdir -p /sysroot/tmp
+			mkdir -p /sysroot/usr/local/etc
+			mkdir -p /sysroot/usr/local/redis
+			mkdir -p /sysroot/var/tmp
+			mkdir -p /sysroot/var/db
+			
+			ln -sf $VDISK_DIR/usr/local/www /sysroot/usr/local/www
+			ln -sf $VDISK_DIR/data /sysroot/data
+			ln -sf $VDISK_DIR/usr/local/etc/ambit /sysroot/usr/local/etc/ambit
+			ln -sf $VDISK_DIR/usr/local/redis/data /sysroot/usr/local/redis/data
+			ln -sf $VDISK_DIR/var/log /sysroot/var/log
+			ln -sf $VDISK_DIR/tmp/download /sysroot/tmp/download
+			ln -sf $VDISK_DIR/tmp/upload /sysroot/tmp/upload
+			ln -sf $VDISK_DIR/tmp/cli /sysroot/tmp/cli
+			ln -sf $VDISK_DIR/tmp/export_ui /sysroot/tmp/export_ui
+			ln -sf $VDISK_DIR/tmp/image /sysroot/tmp/image
+			ln -sf $VDISK_DIR/var/upgrade /sysroot/var/upgrade
+			ln -sf $VDISK_DIR/var/tmp/upgrade /sysroot/var/tmp/upgrade
+			ln -sf $VDISK_DIR/apps /sysroot/apps
+			ln -sf $VDISK_DIR/appslog /sysroot/appslog
+			ln -sf $VDISK_DIR/InstallGram /sysroot/InstallGram
+			ln -sf $VDISK_DIR/Install_gam /sysroot/Install_gam
+			ln -sf $VDISK_DIR/var/db /sysroot/var/db
+			chown -R www:www $VDISK_DIR/tmp/download
+			chown -R www:www $VDISK_DIR/tmp/upload
+			chown -R www:www $VDISK_DIR/tmp/export_ui
+			chown -R www:www $VDISK_DIR/usr/local/www
+		fi
+	fi
+elif [ $FINDROOT = "YES" ]; then
+	mount $ROOTDISK /sysroot
+	mkdir -p /sysroot/vdisk
+	mount --bind /sysroot /sysroot/vdisk
+
+	if [ $? -ne 0 ]; then
+		echo "Mount ROOTDISK $ROOTDISK failed!"
+		use_tmpfs $RMSIZE
+	else
+		./cleanup.sh
+
+		#Disk for log
+		if [ $FINDDATA = "YES" ]; then
+			mkdir -p /sysroot/var/log
+			mount $DATADISK /sysroot/var/log 1>/dev/null 2>&1
+		fi
+	fi
+else
+	use_tmpfs $RMSIZE
+fi
+
+
+if [ $BOOTOK != "YES" ]; then
+	echo "Cann't Find Boot Disk!"
+	./rescue.sh
+else
+	echo "Check Root File System ..."
+	mount $BOOT /mnt
+	if [ -f /mnt/rootfs.pkg ]; then
+		echo "Load RootFS pkg now ..."
+		/bin/expkg extract /mnt/rootfs.pkg /sysroot
+		cp -f /bin/expkg /sysroot/bin/
+		./ldopenssl.sh
+		if [ "$DEBUG" = "1" ]; then
+			./package.dbg.sh
+		else
+			./package.sh
+		fi
+		#create expkg mkfs directory
+		mkdir -p /sysroot/tmp/pkg
+
+		#mknod for harddisk
+		cat /proc/diskstats | awk '{ if($1 != "1") { print $1 " " $2 " " $3} }' > $DISKINFO
+		if [ -f $DISKINFO ]; then
+			(cat $DISKINFO; echo ) | 
+			while read Major Minor Node
+			do 
+				case $Major in
+					"") continue;;
+				esac
+
+				if [ -e /sysroot/dev/$Node ]; then
+					echo "/sysroot//dev/$Node exist"
+				else
+					mknod /sysroot/dev/$Node b $Major $Minor
+				fi
+			done
+			rm -f $DISKINFO
+		fi
+
+
+		#change passwd here.
+		# save the passwd file with 'pwx' to avoid be removed while upgrading
+		if [ -f /mnt/pwx ]; then
+			/bin/expkg extract /mnt/pwx /sysroot
+		elif [ -f /mnt/pwx.pkg ]; then
+			/bin/expkg extract /mnt/pwx.pkg /sysroot
+			mv /mnt/pwx.pkg /mnt/pwx
+		fi
+
+		umount /mnt
+		echo "Change to normal working mode"
+		cd /sysroot/dev
+		ln -sf $BOOT root
+		ln -sf $BOOT flash_dev
+	else
+		echo "Cann't find Root File System"
+		umount /mnt
+		./rescue.sh
+	fi
+fi
+if [ "$RMONLY" = "1" ]; then
+	rootdir="/sysroot"
+	umount /tmp/pkg
+	rm -rf /tmp/pkg
+	ln -sf $VDISK_DIR/tmp/pkg /sysroot/tmp/pkg
+	if [ $FINDROOT = "YES" ]; then
+		umount $VDISK_DIR
+		mkdir /sysroot/$VDISK_DIR
+		mount $ROOTDISK /sysroot/$VDISK_DIR 
+	fi
+fi
+
+
+#mount --move /proc /sysroot/proc
+umount /proc
+#mount --move /sys  /sysroot/sys
+umount /sys
+#mount --move /dev  /sysroot/dev
+#umount /dev
+
+#echo finished mount move
+#ls /sysroot
+echo Now Switch Root 
+exec switch_root /sysroot /sbin/init
+#exec switch_root /sysroot /bin/sh

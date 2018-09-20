@@ -1,0 +1,5 @@
+use syslinux.exe to write CF card MBR
+syslinux.exe [-sfmar][-d directory] <drive>: [bootsecfile]
+cmdline example "syslinux.exe -sfmar g:"
+syslinux.cfg is configure file of bootloader
+package.cfg is configure file of system loading package  

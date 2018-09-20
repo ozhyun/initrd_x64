@@ -1,0 +1,7 @@
+#!/bin/sh
+
+RUNLEVEL=$1
+
+echo "Enter run level $1"
+
+
