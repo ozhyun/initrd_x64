@@ -1,7 +1,7 @@
 #!/bin/sh
 
 cd /
-DIRS="bin sbin lib etc dev"
+DIRS="bin sbin lib lib64 etc dev"
 for dir in $DIRS
 do
    cp -a $dir /sysroot
