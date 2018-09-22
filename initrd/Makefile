@@ -19,7 +19,6 @@ pre:
 	cp -rf initrd initrd_tmp
 	cd initrd_tmp && tar xzf ../dev.tar.gz
 	cd initrd_tmp && rm -rf `find -name ".svn"`
-	#cd src && make install
 
 drivers:
 	mkdir -p $(driver_dir)

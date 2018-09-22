@@ -196,44 +196,9 @@ else
 		/bin/expkg extract /mnt/rootfs.pkg /sysroot
 		cp -f /bin/expkg /sysroot/bin/
 		./ldopenssl.sh
-		if [ "$DEBUG" = "1" ]; then
-			./package.dbg.sh
-		else
-			./package.sh
-		fi
-		#create expkg mkfs directory
-		mkdir -p /sysroot/tmp/pkg
-
-		#mknod for harddisk
-		cat /proc/diskstats | awk '{ if($1 != "1") { print $1 " " $2 " " $3} }' > $DISKINFO
-		if [ -f $DISKINFO ]; then
-			(cat $DISKINFO; echo ) | 
-			while read Major Minor Node
-			do 
-				case $Major in
-					"") continue;;
-				esac
-
-				if [ -e /sysroot/dev/$Node ]; then
-					echo "/sysroot//dev/$Node exist"
-				else
-					mknod /sysroot/dev/$Node b $Major $Minor
-				fi
-			done
-			rm -f $DISKINFO
-		fi
-
-
-		#change passwd here.
-		# save the passwd file with 'pwx' to avoid be removed while upgrading
-		if [ -f /mnt/pwx ]; then
-			/bin/expkg extract /mnt/pwx /sysroot
-		elif [ -f /mnt/pwx.pkg ]; then
-			/bin/expkg extract /mnt/pwx.pkg /sysroot
-			mv /mnt/pwx.pkg /mnt/pwx
-		fi
 
 		umount /mnt
+
 		echo "Change to normal working mode"
 		cd /sysroot/dev
 		ln -sf $BOOT root
