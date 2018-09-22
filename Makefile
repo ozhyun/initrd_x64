@@ -11,7 +11,7 @@ all: pre
 	cd initrd && make $@ 
 	cp initrd/initrd.img version/$(IMAGE)
 	cp syslinux/syslinux.cfg version
-	cp syslinux/3.86/win32/syslinux.exe version
+	cp initrd/package.cfg version
 	cp howto version
 
 .PHONY: pre clean

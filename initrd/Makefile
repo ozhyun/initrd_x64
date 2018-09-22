@@ -36,7 +36,6 @@ env:
 	cd src && make $@
 
 clean:
-	cd src && make $@
 	rm -rf initrd_tmp
 	rm -rf initrd.img
 	
