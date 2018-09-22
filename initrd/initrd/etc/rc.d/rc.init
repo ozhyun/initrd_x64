@@ -7,6 +7,7 @@ hostname "Abloomy"
 
 mount -t proc proc /proc
 mount -t sysfs sys /sys
+mount -t devpts devpts /dev/pts
 
 echo System Backup
 
